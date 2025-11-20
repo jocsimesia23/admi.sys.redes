@@ -1,0 +1,499 @@
+S1
+
+enable
+configure terminal
+
+enable secret cisco
+service password-encryption
+
+line console 0
+password cisco
+login
+exit
+
+line vty 0 4
+password cisco
+login
+transport input telnet
+exit
+int g0/0/0
+no shut
+interface GigabitEthernet0/0/0.10
+ encapsulation dot1Q 10
+ ip address 172.16.100.1 255.255.255.224
+interface GigabitEthernet0/0/0.20
+ encapsulation dot1Q 20
+ ip address 172.16.100.33 255.255.255.224
+interface GigabitEthernet0/0/0.30
+ encapsulation dot1Q 30
+ ip address 172.16.100.65 255.255.255.224
+interface GigabitEthernet0/0/0.40
+ encapsulation dot1Q 40
+ ip address 172.16.100.97 255.255.255.224
+interface GigabitEthernet0/0/0.50
+ encapsulation dot1Q 50
+ ip address 172.16.100.129 255.255.255.224
+
+! MANAGEMENT
+ip dhcp pool MANAGEMENT
+ network 172.16.100.0 255.255.255.224
+ default-router 172.16.100.1
+ dns-server 8.8.8.8
+
+! STAFF_NET
+ip dhcp pool STAFF_NET
+ network 172.16.100.32 255.255.255.224
+ default-router 172.16.100.33
+ dns-server 8.8.8.8
+
+! WIFI_NET
+ip dhcp pool WIFI_NET
+ network 172.16.100.64 255.255.255.224
+ default-router 172.16.100.65
+ dns-server 8.8.8.8
+
+! SERVERS_NET
+ip dhcp pool SERVERS_NET
+ network 172.16.100.96 255.255.255.224
+ default-router 172.16.100.97
+ dns-server 8.8.8.8
+
+! GUEST_NET
+ip dhcp pool GUEST_NET
+ network 172.16.100.128 255.255.255.224
+ default-router 172.16.100.129
+ dns-server 8.8.8.8
+
+router ospf 1
+ network 172.16.100.0 0.0.0.31 area 0
+ network 172.16.100.32 0.0.0.31 area 0
+ network 172.16.100.64 0.0.0.31 area 0
+ network 172.16.100.96 0.0.0.31 area 0
+ network 172.16.100.128 0.0.0.31 area 0
+
+ network 201.8.11.96 0.0.0.7 area 0
+ network 201.8.11.32 0.0.0.31 area 0
+ network 201.8.11.64 0.0.0.31 area 0
+ network 201.8.11.104 0.0.0.7 area 0
+ network 201.8.11.0 0.0.0.31 area 0
+ network 192.168.40.0 0.0.0.31 area 0
+ network 192.168.40.32 0.0.0.31 area 0
+ network 192.168.40.64 0.0.0.31 area 0
+ network 192.168.40.96 0.0.0.31 area 0
+ network 192.168.40.128 0.0.0.31 area 0
+ network 12.20.0.0 0.0.0.3 area 0
+ network 12.20.0.4 0.0.0.3 area 0
+ network 12.20.0.8 0.0.0.3 area 0
+router ospf 1
+
+ network 10.1.1.0 0.0.0.3 area 0
+ network 10.1.1.4 0.0.0.3 area 0
+ network 10.1.1.8 0.0.0.3 area 0
+en
+conf t
+vlan 10
+ name MANAGEMENT
+vlan 20
+ name STAFF_NET
+vlan 30
+ name WIFI_NET
+vlan 40
+ name SERVERS_NET
+vlan 50
+ name GUEST_NET
+
+int f0/1
+switchport mode trunk
+int range f0/2-3
+switchport access vlan 10
+
+int range f0/4-5
+switchport access vlan 20
+int range f0/6
+switchport access vlan 30
+int range f0/7-8
+switchport access vlan 40
+int range f0/9-10
+switchport access vlan 50
+
+
+crypto isakmp policy 10
+ encryption aes 256
+authentication pre-share
+ group 5
+
+!Configure Pre-Shared Keys
+crypto isakmp key GLOBAL_TECH address 12.20.0.5
+crypto isakmp key GLOBAL_TECH address 12.20.0.9
+
+!Configure IPsec Transform Set
+crypto ipsec transform-set GLOBAL_TECH_SET esp-aes esp-sha-hmac
+
+!Create Crypto Map
+crypto map GLOBAL_TECH_MAP 10 ipsec-isakmp
+ set peer 12.20.0.5
+set pfs group5
+set security-association lifetime seconds 86400 
+ set transform-set GLOBAL_TECH_SET
+ match address 100
+crypto map GLOBAL_TECH_MAP 20 ipsec-isakmp
+ set peer 12.20.0.9
+set pfs group5
+set security-association lifetime seconds 86400 
+ set transform-set GLOBAL_TECH_SET
+ match address 101
+
+!Apply ACL:
+no access-list 100
+no access-list 101
+access-list 100 permit ip 172.16.100.0 255.255.255.224 201.8.11.0 255.255.255.224
+access-list 100 permit ip 172.16.100.0 255.255.255.224 201.8.11.32 255.255.255.224
+access-list 100 permit ip 172.16.100.0 255.255.255.224 201.8.11.64 255.255.255.224
+access-list 100 permit ip 172.16.100.0 255.255.255.224 201.8.11.96 255.255.255.248
+access-list 100 permit ip 172.16.100.0 255.255.255.224 201.8.11.104 255.255.255.248
+access-list 100 permit ip 172.16.100.32 255.255.255.224 201.8.11.0 255.255.255.224
+access-list 100 permit ip 172.16.100.32 255.255.255.224 201.8.11.32 255.255.255.224
+access-list 100 permit ip 172.16.100.32 255.255.255.224 201.8.11.64 255.255.255.224
+access-list 100 permit ip 172.16.100.32 255.255.255.224 201.8.11.96 255.255.255.248
+access-list 100 permit ip 172.16.100.32 255.255.255.224 201.8.11.104 255.255.255.248
+access-list 100 permit ip 172.16.100.64 255.255.255.224 201.8.11.0 255.255.255.224
+access-list 100 permit ip 172.16.100.64 255.255.255.224 201.8.11.32 255.255.255.224
+access-list 100 permit ip 172.16.100.64 255.255.255.224 201.8.11.64 255.255.255.224
+access-list 100 permit ip 172.16.100.64 255.255.255.224 201.8.11.96 255.255.255.248
+access-list 100 permit ip 172.16.100.64 255.255.255.224 201.8.11.104 255.255.255.248
+access-list 100 permit ip 172.16.100.96 255.255.255.224 201.8.11.0 255.255.255.224
+access-list 100 permit ip 172.16.100.96 255.255.255.224 201.8.11.32 255.255.255.224
+access-list 100 permit ip 172.16.100.96 255.255.255.224 201.8.11.64 255.255.255.224
+access-list 100 permit ip 172.16.100.96 255.255.255.224 201.8.11.96 255.255.255.248
+access-list 100 permit ip 172.16.100.96 255.255.255.224 201.8.11.104 255.255.255.248
+access-list 100 permit ip 172.16.100.128 255.255.255.224 201.8.11.0 255.255.255.224
+access-list 100 permit ip 172.16.100.128 255.255.255.224 201.8.11.32 255.255.255.224
+access-list 100 permit ip 172.16.100.128 255.255.255.224 201.8.11.64 255.255.255.224
+access-list 100 permit ip 172.16.100.128 255.255.255.224 201.8.11.96 255.255.255.248
+access-list 100 permit ip 172.16.100.128 255.255.255.224 201.8.11.104 255.255.255.248
+access-list 101 permit ip 172.16.100.0 255.255.255.224 192.168.40.0 255.255.255.224
+access-list 101 permit ip 172.16.100.0 255.255.255.224 192.168.40.32 255.255.255.224
+access-list 101 permit ip 172.16.100.0 255.255.255.224 192.168.40.64 255.255.255.224
+access-list 101 permit ip 172.16.100.0 255.255.255.224 192.168.40.96 255.255.255.224
+access-list 101 permit ip 172.16.100.0 255.255.255.224 192.168.40.128 255.255.255.224
+access-list 101 permit ip 172.16.100.32 255.255.255.224 192.168.40.0 255.255.255.224
+access-list 101 permit ip 172.16.100.32 255.255.255.224 192.168.40.32 255.255.255.224
+access-list 101 permit ip 172.16.100.32 255.255.255.224 192.168.40.64 255.255.255.224
+access-list 101 permit ip 172.16.100.32 255.255.255.224 192.168.40.96 255.255.255.224
+access-list 101 permit ip 172.16.100.32 255.255.255.224 192.168.40.128 255.255.255.224
+access-list 101 permit ip 172.16.100.64 255.255.255.224 192.168.40.0 255.255.255.224
+access-list 101 permit ip 172.16.100.64 255.255.255.224 192.168.40.32 255.255.255.224
+access-list 101 permit ip 172.16.100.64 255.255.255.224 192.168.40.64 255.255.255.224
+access-list 101 permit ip 172.16.100.64 255.255.255.224 192.168.40.96 255.255.255.224
+access-list 101 permit ip 172.16.100.64 255.255.255.224 192.168.40.128 255.255.255.224
+access-list 101 permit ip 172.16.100.96 255.255.255.224 192.168.40.0 255.255.255.224
+access-list 101 permit ip 172.16.100.96 255.255.255.224 192.168.40.32 255.255.255.224
+access-list 101 permit ip 172.16.100.96 255.255.255.224 192.168.40.64 255.255.255.224
+access-list 101 permit ip 172.16.100.96 255.255.255.224 192.168.40.96 255.255.255.224
+access-list 101 permit ip 172.16.100.96 255.255.255.224 192.168.40.128 255.255.255.224
+access-list 101 permit ip 172.16.100.128 255.255.255.224 192.168.40.0 255.255.255.224
+access-list 101 permit ip 172.16.100.128 255.255.255.224 192.168.40.32 255.255.255.224
+access-list 101 permit ip 172.16.100.128 255.255.255.224 192.168.40.64 255.255.255.224
+access-list 101 permit ip 172.16.100.128 255.255.255.224 192.168.40.96 255.255.255.224
+access-list 101 permit ip 172.16.100.128 255.255.255.224 192.168.40.128 255.255.255.224
+
+
+
+!Apply Crypto Map to External Interface
+interface s0/1/0
+ crypto map GLOBAL_TECH_MAP
+ip access-list extended DENY_VLAN_TO_VLAN_EXCEPT_40
+ permit ip any 172.16.100.96 0.0.0.31
+ permit ip 172.16.100.96 0.0.0.31 any
+ deny ip 172.16.100.0 0.0.0.127 172.16.100.0 0.0.0.127
+ permit ip any any
+!
+interface GigabitEthernet0/0/0.10
+ encapsulation dot1Q 10
+ ip address 172.16.100.1 255.255.255.224
+ ip access-group DENY_VLAN_TO_VLAN_EXCEPT_40 out
+!
+interface GigabitEthernet0/0/0.20
+ encapsulation dot1Q 20
+ ip address 172.16.100.33 255.255.255.224
+ ip access-group DENY_VLAN_TO_VLAN_EXCEPT_40 out
+!
+interface GigabitEthernet0/0/0.30
+ encapsulation dot1Q 30
+ ip address 172.16.100.65 255.255.255.224
+ ip access-group DENY_VLAN_TO_VLAN_EXCEPT_40 out
+!
+interface GigabitEthernet0/0/0.40
+ encapsulation dot1Q 40
+ ip address 172.16.100.97 255.255.255.224
+!
+interface GigabitEthernet0/0/0.50
+ encapsulation dot1Q 50
+ ip address 172.16.100.129 255.255.255.224
+ ip access-group DENY_VLAN_TO_VLAN_EXCEPT_40 out
+!
+end
+
+
+S2:
+
+
+enable
+configure terminal
+
+enable secret cisco
+service password-encryption
+
+line console 0
+password cisco
+login
+exit
+
+line vty 0 4
+password cisco
+login
+transport input telnet
+exit
+int g0/0/0
+no shut
+interface GigabitEthernet0/0/0.10
+ encapsulation dot1Q 10
+ ip address 201.8.11.97 255.255.255.248
+interface GigabitEthernet0/0/0.20
+ encapsulation dot1Q 20
+ ip address 201.8.11.33 255.255.255.224
+interface GigabitEthernet0/0/0.30
+ encapsulation dot1Q 30
+ ip address 201.8.11.65 255.255.255.224
+interface GigabitEthernet0/0/0.40
+ encapsulation dot1Q 40
+ ip address 201.8.11.105 255.255.255.248
+interface GigabitEthernet0/0/0.50
+ encapsulation dot1Q 50
+ ip address 201.8.11.1 255.255.255.224
+
+ip dhcp pool MANAGEMENT
+ network 201.8.11.96 255.255.255.248
+ default-router 201.8.11.97
+ dns-server 8.8.8.8
+
+! STAFF_NET
+ip dhcp pool STAFF_NET
+ network 201.8.11.32 255.255.255.224
+ default-router 201.8.11.33
+ dns-server 8.8.8.8
+
+! WIFI_NET
+ip dhcp pool WIFI_NET
+ network 201.8.11.64 255.255.255.224
+ default-router 201.8.11.65
+ dns-server 8.8.8.8
+
+! SERVERS_NET (/29)
+ip dhcp pool SERVERS_NET
+ network 201.8.11.104 255.255.255.248
+ default-router 201.8.11.105
+ dns-server 8.8.8.8
+
+! GUEST_NET
+ip dhcp pool GUEST_NET
+ network 201.8.11.0 255.255.255.224
+ default-router 201.8.11.1
+ dns-server 8.8.8.8
+
+crypto isakmp policy 10
+ encryption aes 256
+authentication pre-share
+ group 5
+
+!Configure Pre-Shared Keys
+crypto isakmp key GLOBAL_TECH address 12.20.0.1
+crypto isakmp key GLOBAL_TECH address 12.20.0.9
+
+!Configure IPsec Transform Set
+crypto ipsec transform-set GLOBAL_TECH_SET esp-aes esp-sha-hmac
+
+!Create Crypto Map
+crypto map GLOBAL_TECH_MAP 10 ipsec-isakmp
+ set peer 12.20.0.1
+set pfs group5
+set security-association lifetime seconds 86400 
+ set transform-set GLOBAL_TECH_SET
+ match address 100
+crypto map GLOBAL_TECH_MAP 20 ipsec-isakmp
+ set peer 12.20.0.9
+set pfs group5
+set security-association lifetime seconds 86400 
+ set transform-set GLOBAL_TECH_SET
+ match address 101
+
+!Apply ACL:
+access-list 100 permit ip 201.8.11.0 255.255.255.224 172.16.100.0 255.255.255.224
+access-list 100 permit ip 201.8.11.0 255.255.255.224 172.16.100.32 255.255.255.224
+access-list 100 permit ip 201.8.11.0 255.255.255.224 172.16.100.64 255.255.255.224
+access-list 100 permit ip 201.8.11.0 255.255.255.224 172.16.100.96 255.255.255.224
+access-list 100 permit ip 201.8.11.0 255.255.255.224 172.16.100.128 255.255.255.224
+access-list 101 permit ip 0.0.0.0 255.255.255.224 0.0.0.0 255.255.255.224
+
+!Apply Crypto Map to External Interface
+interface s0/1/0
+ crypto map GLOBAL_TECH_MAP
+ip access-list extended DENY_VLAN_EXCEPT_40
+ permit ip any 201.8.11.104 0.0.0.7
+ permit ip 201.8.11.104 0.0.0.7 any
+ deny ip 201.8.11.0 0.0.0.255 201.8.11.0 0.0.0.255
+ permit ip any any
+!
+interface GigabitEthernet0/0/0.10
+ encapsulation dot1Q 10
+ ip address 201.8.11.97 255.255.255.248
+ ip access-group DENY_VLAN_EXCEPT_40 out
+!
+interface GigabitEthernet0/0/0.20
+ encapsulation dot1Q 20
+ ip address 201.8.11.33 255.255.255.224
+ ip access-group DENY_VLAN_EXCEPT_40 out
+!
+interface GigabitEthernet0/0/0.30
+ encapsulation dot1Q 30
+ ip address 201.8.11.65 255.255.255.224
+ ip access-group DENY_VLAN_EXCEPT_40 out
+!
+interface GigabitEthernet0/0/0.40
+ encapsulation dot1Q 40
+ ip address 201.8.11.105 255.255.255.248
+!
+interface GigabitEthernet0/0/0.50
+ encapsulation dot1Q 50
+ ip address 201.8.11.1 255.255.255.224
+ ip access-group DENY_VLAN_EXCEPT_40 out
+!
+end
+
+S3:
+
+enable
+configure terminal
+
+enable secret cisco
+service password-encryption
+
+line console 0
+password cisco
+login
+exit
+
+line vty 0 4
+password cisco
+login
+transport input telnet
+exit
+int g0/0/0
+no shut
+interface GigabitEthernet0/0/0.10
+ encapsulation dot1Q 10
+ ip address 192.168.40.1 255.255.255.224
+interface GigabitEthernet0/0/0.20
+ encapsulation dot1Q 20
+ ip address 192.168.40.33 255.255.255.224
+interface GigabitEthernet0/0/0.30
+ encapsulation dot1Q 30
+ ip address 192.168.40.65 255.255.255.224
+interface GigabitEthernet0/0/0.40
+ encapsulation dot1Q 40
+ ip address 192.168.40.97 255.255.255.224
+interface GigabitEthernet0/0/0.50
+ encapsulation dot1Q 50
+ ip address 192.168.40.129 255.255.255.224
+
+ip dhcp pool MANAGEMENT
+ network 192.168.40.0 255.255.255.224
+ default-router 192.168.40.1
+ dns-server 8.8.8.8
+
+ip dhcp pool STAFF_NET
+ network 192.168.40.32 255.255.255.224
+ default-router 192.168.40.33
+ dns-server 8.8.8.8
+
+ip dhcp pool WIFI_NET
+ network 192.168.40.64 255.255.255.224
+ default-router 192.168.40.65
+ dns-server 8.8.8.8
+
+ip dhcp pool SERVERS_NET
+ network 192.168.40.96 255.255.255.224
+ default-router 192.168.40.97
+ dns-server 8.8.8.8
+
+ip dhcp pool GUEST_NET
+ network 192.168.40.128 255.255.255.224
+ default-router 192.168.40.129
+ dns-server 8.8.8.8
+
+crypto isakmp policy 10
+ encryption aes 256
+authentication pre-share
+ group 5
+
+!Configure Pre-Shared Keys
+crypto isakmp key GLOBAL_TECH address 12.20.0.1
+crypto isakmp key GLOBAL_TECH address 12.20.0.5
+
+!Configure IPsec Transform Set
+crypto ipsec transform-set GLOBAL_TECH_SET esp-aes esp-sha-hmac
+
+!Create Crypto Map
+crypto map GLOBAL_TECH_MAP 10 ipsec-isakmp
+ set peer 12.20.0.1
+set pfs group5
+set security-association lifetime seconds 86400 
+ set transform-set GLOBAL_TECH_SET
+ match address 100
+crypto map GLOBAL_TECH_MAP 20 ipsec-isakmp
+ set peer 12.20.0.5
+set pfs group5
+set security-association lifetime seconds 86400 
+ set transform-set GLOBAL_TECH_SET
+ match address 101
+
+!Apply ACL:
+access-list 100 permit ip 0.0.0.0 255.255.255.224 0.0.0.0 255.255.255.224
+access-list 100 permit ip 0.0.0.0 255.255.255.224 0.0.0.0 255.255.255.248
+access-list 101 permit ip 0.0.0.0 255.255.255.224 0.0.0.0 255.255.255.224
+
+!Apply Crypto Map to External Interface
+interface s0/1/0
+ crypto map GLOBAL_TECH_MAP
+
+ip access-list extended DENY_VLAN_TO_VLAN_EXCEPT_40
+ permit ip any 192.168.40.96 0.0.0.31
+ permit ip 192.168.40.96 0.0.0.31 any
+ deny ip 192.168.40.0 0.0.0.127 192.168.40.0 0.0.0.127
+ permit ip any any
+!
+interface GigabitEthernet0/0/0.10
+ encapsulation dot1Q 10
+ ip address 192.168.40.1 255.255.255.224
+ ip access-group DENY_VLAN_TO_VLAN_EXCEPT_40 out
+!
+interface GigabitEthernet0/0/0.20
+ encapsulation dot1Q 20
+ ip address 192.168.40.33 255.255.255.224
+ ip access-group DENY_VLAN_TO_VLAN_EXCEPT_40 out
+!
+interface GigabitEthernet0/0/0.30
+ encapsulation dot1Q 30
+ ip address 192.168.40.65 255.255.255.224
+ ip access-group DENY_VLAN_TO_VLAN_EXCEPT_40 out
+!
+interface GigabitEthernet0/0/0.40
+ encapsulation dot1Q 40
+ ip address 192.168.40.97 255.255.255.224
+!
+interface GigabitEthernet0/0/0.50
+ encapsulation dot1Q 50
+ ip address 192.168.40.129 255.255.255.224
+ ip access-group DENY_VLAN_TO_VLAN_EXCEPT_40 out
+!
+end
